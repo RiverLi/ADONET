@@ -11,3 +11,5 @@ For an entity, like user, we have these operations:
 2. Login user,
 3. Get count of user
 4. Read/update special columns like binary column.
+
+It is in c# programming language, and .net core 2.x platform.
