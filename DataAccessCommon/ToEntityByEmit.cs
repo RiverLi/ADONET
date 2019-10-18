@@ -8,7 +8,7 @@ using System.Data;
 
 namespace DataAccessCommon
 {
-    public static class ToEntityByEmit
+    internal static class ToEntityByEmit
     {
         public static List<T> GetList<T>(DataSet ds)
         {
@@ -52,7 +52,7 @@ namespace DataAccessCommon
 
     }
 
-    public class DataTableEntityBuilder<T>
+    internal class DataTableEntityBuilder<T>
     {
         private static readonly MethodInfo getValueMethod = typeof(DataRow).GetMethod("get_Item", new Type[] { typeof(int) });
         private static readonly MethodInfo isDBNullMethod = typeof(DataRow).GetMethod("IsNull", new Type[] { typeof(int) });

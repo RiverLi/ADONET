@@ -1,63 +1,28 @@
 ﻿using System;
-using System.Configuration;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Collections.Generic;
+using System.Reflection;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
-
 namespace DataAccessCommon
 {
-    /// <summary>
-    /// The MyDBHelper class is intended to encapsulate high performance, scalable best practices for 
-    /// common uses of SqlClient, OracleClient, OleDb, and others
-    /// </summary>
     public static class MyStaticDBHelper
     {
-        public struct MyDBParameter
-        {
-            public string strParameterName;
-            public DbType dbType;
-            public object value;
-            public ParameterDirection parameterDirection;
-
-            public MyDBParameter(string parameterName, DbType type, object theValue, ParameterDirection direction = ParameterDirection.Input)
-            {
-                strParameterName = parameterName;
-                dbType = type;
-                value = theValue;
-                parameterDirection = direction;
-            }
-        }
-        public static string DatabaseType = "MySql";
-        private static Dictionary<string, string> providers = new Dictionary<string, string>() {
-                { "SqlServer", "System.Data.SqlClient" }
-                , { "Oracle", "System.Data.OracleClient" }
-                , { "OleDb", "System.Data.OleDb" }
-                , { "MySql", "MySql.Data.MySqlClient" }
-                };
-        private static DbProviderFactory dataFactory = DbProviderFactories.GetFactory(providers[DatabaseType]);
+        private static readonly string  parameterPattern = @"[@|:]\w+\b?";
+        public static ILogger logger { get; set; }
+        public static string providerName = "MySql.Data.MySqlClient"; //"System.Data.SqlClient","System.Data.OracleClient","System.Data.OleDb","MySql.Data.MySqlClient"
+        private static DbProviderFactory dataFactory = DbProviderFactories.GetFactory(providerName);
         public static string CONNECTION_STRING = null;
-
         #region private methods
-        private static void AttachParameters(DbCommand command, DbParameter[] parameters)
-        {
-            if (parameters != null)
-            {
-                command.Parameters.AddRange(parameters);
-            }
-        }
-
         private static DbCommand CreateCommand(object conn)
         {
             DbCommand command = null;
-            //If it is just a connection(not a transaction)
             if (conn is DbConnection)
             {
                 command = ((DbConnection)conn).CreateCommand();
                 if (command.Connection.State != ConnectionState.Open)
-                {
                     command.Connection.Open();
-                }
             }
             else //It is a transaction, then join the transaction
             {
@@ -66,17 +31,54 @@ namespace DataAccessCommon
             }
             return command;
         }
-
-        private static DbCommand SetupCommand(object conn, CommandType commandType, string strSQLOrSPName, List<MyDBParameter> myDBParameters)
+        private static DbType GetDbType(Type runtimeType)
         {
-            DbParameter[] parameters = myDBParameters != null ? CreateDBParameters(myDBParameters).ToArray() : null;
+            var nonNullableType = Nullable.GetUnderlyingType(runtimeType);
+            if (nonNullableType != null)
+            {
+                runtimeType = nonNullableType;
+            }
+            var templateValue = (Object)null;
+            if (runtimeType.IsClass == false)
+            {
+                templateValue = Activator.CreateInstance(runtimeType);
+            }
+            var sqlParamter = dataFactory.CreateParameter();
+            sqlParamter.ParameterName = string.Empty;
+            sqlParamter.Value = templateValue;
+            return sqlParamter.DbType;
+        }
+        private static List<String> GetParameterNames(string strSQLOrSPName)
+        {
+            Regex regex = new Regex(parameterPattern);
+            MatchCollection matchCollection = regex.Matches(strSQLOrSPName);
+            List<string> parameterNames = new List<string>();
+            foreach (Match match in matchCollection)
+                parameterNames.Add(match.Value);
+            return parameterNames;
+        }
+        private static DbCommand SetupCommand(object conn, CommandType commandType, string strSQLOrSPName, object[] parameters)
+        {
+            List<string> parameterNames = GetParameterNames(strSQLOrSPName);
             DbCommand command = CreateCommand(conn);
             command.CommandText = strSQLOrSPName;
             command.CommandType = commandType;
-            AttachParameters(command, parameters);
+            List<DbParameter> myDBParameters = new List<DbParameter>();
+            int i = 0;
+            if (parameters != null && parameters.Length > 0)
+            {
+                foreach (object parameter in parameters)
+                {
+                    myDBParameters.Add(CreateDBParameter(parameterNames[i], GetDbType(parameter.GetType()), parameter, ParameterDirection.Input));
+                    i++;
+                }
+            }
+            if (myDBParameters.Count > 0)
+            {
+                command.Parameters.AddRange(myDBParameters.ToArray());
+            }
             return command;
         }
-
         private static DbParameter CreateDBParameter(string strParameterName, DbType dbType, object value, ParameterDirection direction)
         {
             DbParameter parameter = dataFactory.CreateParameter();
@@ -86,87 +88,101 @@ namespace DataAccessCommon
             parameter.Direction = direction;
             return parameter;
         }
-
-        private static List<DbParameter> CreateDBParameters(List<MyDBParameter> myDBParameters)
-        {
-            List<DbParameter> parameters = new List<DbParameter>();
-            foreach (MyDBParameter myDBParameter in myDBParameters)
-            {
-                parameters.Add(CreateDBParameter(myDBParameter.strParameterName, myDBParameter.dbType, myDBParameter.value, myDBParameter.parameterDirection));
-            }
-            return parameters;
-        }
-
         private static DbConnection GetConnection()
         {
             DbConnection connection = dataFactory.CreateConnection();
             connection.ConnectionString = CONNECTION_STRING;
             return connection;
         }
-
-        private static int ExecuteNonQuery(object conn, CommandType commandType, string strSQLOrSPName, List<MyDBParameter> myDBParameters = null)
+        private static void BuildParameterList<T>(string sql, T entity, List<object> parameterList)
         {
-            DbCommand command = SetupCommand(conn, commandType, strSQLOrSPName, myDBParameters);
-            return command.ExecuteNonQuery();
+            List<string> parameterNames = GetParameterNames(sql);
+            var properties = new List<PropertyInfo>(entity.GetType().GetProperties());
+            foreach (string parameterName in parameterNames)
+            {
+                var property = properties.Find(x => x.Name.ToLower() == parameterName.ToLower());
+                parameterList.Add(property.GetValue(entity));
+            }
         }
-
-        private static DataSet ExecuteDataset(object conn, CommandType commandType, string strSQLOrSPName, List<MyDBParameter> myDBParameters = null)
+        private static T DoQuery<T>(Func<DbConnection, string, object[], T> function, string sql, object[] parameterList)
         {
-            DbCommand command = SetupCommand(conn, commandType, strSQLOrSPName, myDBParameters);
-            DbDataAdapter dataAdaptor = dataFactory.CreateDataAdapter();
-            DataSet ds = new DataSet();
-            dataAdaptor.SelectCommand = command;
-            dataAdaptor.Fill(ds);
-            return ds;
+            DbConnection dbConnection = null;
+            try
+            {
+                dbConnection = GetConnection();
+                dbConnection.Open();
+                T returnResult = function(dbConnection, sql, parameterList);
+                dbConnection.Close();
+                return returnResult;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, ex.Message);
+                throw;
+            }
         }
-
-        private static DbDataReader ExecuteReader(object conn, CommandType commandType, string strSQLOrSPName, List<MyDBParameter> myDBParameters = null)
+        private static DataSet ExecuteDataset(string sql, params object[] parameterList)
         {
-            DbCommand command = SetupCommand(conn, commandType, strSQLOrSPName, myDBParameters);
-            return command.ExecuteReader();
+            return DoQuery<DataSet>((conn, SQL, parameters) =>
+            {
+                DbCommand command = SetupCommand(conn, CommandType.Text, SQL, parameters);
+                DbDataAdapter dataAdaptor = dataFactory.CreateDataAdapter();
+                DataSet ds = new DataSet();
+                dataAdaptor.SelectCommand = command;
+                dataAdaptor.Fill(ds);
+                return ds;
+            }, sql, parameterList);
         }
-
-        private static object ExecuteScalar(object conn, CommandType commandType, string strSQLOrSPName, List<MyDBParameter> myDBParameters = null)
+        private static DataSet ExecuteDatasetEntity<T>(string sql, T entity)
         {
-            DbCommand command = SetupCommand(conn, commandType, strSQLOrSPName, myDBParameters);
-            return command.ExecuteScalar();
+            var parameterList = new List<object>();
+            BuildParameterList(sql, entity, parameterList);
+            return DoQuery<DataSet>((conn, SQL, parameters) =>
+            {
+                DbCommand command = SetupCommand(conn, CommandType.Text, SQL, parameters);
+                DbDataAdapter dataAdaptor = dataFactory.CreateDataAdapter();
+                DataSet ds = new DataSet();
+                dataAdaptor.SelectCommand = command;
+                dataAdaptor.Fill(ds);
+                return ds;
+            }, sql, parameterList.ToArray());
         }
         #endregion
-
-        public static int ExecuteNonQuery(List<MyDBParameter> parameterList, string sql, ILogger logger)
+        public static int ExecuteNonQueryByParameters(string sql, params object[] parameterList)
         {
-            DbConnection dbConnection = null;
-            try
+            return DoQuery<int>((conn, SQL, parameters) =>
             {
-                dbConnection = GetConnection();
-                dbConnection.Open();
-                var returnCount = ExecuteNonQuery(dbConnection, CommandType.Text, sql, parameterList);
-                dbConnection.Close();
+                DbCommand command = SetupCommand(conn, CommandType.Text, SQL, parameters);
+                var returnCount = command.ExecuteNonQuery();
                 return returnCount;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, ex.Message);
-                throw;
-            }
+            }, sql, parameterList);
         }
-
-        public static DataSet ExecuteDataset(List<MyDBParameter> parameterList, string sql, ILogger logger)
+        public static int ExecuteNonQueryByEntity<T>(string sql, T entity)
         {
-            DbConnection dbConnection = null;
-            try
+            var parameterList = new List<object>();
+            BuildParameterList(sql, entity, parameterList);
+            return DoQuery<int>((conn, SQL, parameters) =>
             {
-                dbConnection = GetConnection();
-                dbConnection.Open();
-                var dataSet = ExecuteDataset(dbConnection, CommandType.Text, sql, parameterList);
-                dbConnection.Close();
-                return dataSet;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, ex.Message);
-                throw;
-            }
+                DbCommand command = SetupCommand(conn, CommandType.Text, SQL, parameters);
+                var returnCount = command.ExecuteNonQuery();
+                return returnCount;
+            }, sql, parameterList.ToArray());
+        }
+        public static T GetEntityByParameters<T>(string sql, params object[] parameterList)
+        {
+            return ToEntityByEmit.GetEntity<T>(ExecuteDataset(sql, parameterList).Tables[0]);
+        }
+        public static T GetEntityByEntity<T>(string sql, T entity)
+        {
+            return ToEntityByEmit.GetEntity<T>(ExecuteDatasetEntity(sql, entity).Tables[0]);
+        }
+        public static List<T> GetListByParameters<T>(string sql, params object[] parameterList)
+        {
+            return ToEntityByEmit.GetList<T>(ExecuteDataset(sql, parameterList).Tables[0]);
+        }
+        public static List<T> GetListByEntity<T>(string sql, T entity)
+        {
+            return ToEntityByEmit.GetList<T>(ExecuteDatasetEntity(sql, entity).Tables[0]);
         }
     }
 }
