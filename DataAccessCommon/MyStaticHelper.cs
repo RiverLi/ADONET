@@ -43,6 +43,13 @@ namespace DataAccessCommon
             {
                 templateValue = Activator.CreateInstance(runtimeType);
             }
+            else if (runtimeType.IsClass == true && runtimeType.IsArray == true)
+            {
+                List<object> array = new List<object>();
+                array.Add(Activator.CreateInstance(runtimeType.GetElementType()));
+                array.Add(Activator.CreateInstance(runtimeType.GetElementType()));
+                templateValue = array.ToArray();
+            }
             var sqlParamter = dataFactory.CreateParameter();
             sqlParamter.ParameterName = string.Empty;
             sqlParamter.Value = templateValue;
@@ -57,7 +64,7 @@ namespace DataAccessCommon
                 parameterNames.Add(match.Value);
             return parameterNames;
         }
-        private static DbCommand SetupCommand(object conn, CommandType commandType, string strSQLOrSPName, object[] parameters)
+        private static DbCommand SetupCommand(object conn, CommandType commandType, string strSQLOrSPName, object[] parameters, PropertyInfo[] properties = null)
         {
             List<string> parameterNames = GetParameterNames(strSQLOrSPName);
             DbCommand command = CreateCommand(conn);
@@ -69,7 +76,23 @@ namespace DataAccessCommon
             {
                 foreach (object parameter in parameters)
                 {
-                    myDBParameters.Add(CreateDBParameter(parameterNames[i], GetDbType(parameter.GetType()), parameter, ParameterDirection.Input));
+                    Type parameterType = null;
+                    if (parameter == null)
+                    {
+                        if (properties != null)
+                        {
+                            var propertyList = new List<PropertyInfo>(properties);
+                            var property = propertyList.Find(x => x.Name == parameterNames[i].Substring(1));
+                            parameterType = property.PropertyType;
+                        }
+                        else
+                        {
+                            parameterType = typeof(string);
+                        }
+                    }
+                    else
+                        parameterType = parameter.GetType();
+                    myDBParameters.Add(CreateDBParameter(parameterNames[i], GetDbType(parameterType), parameter, ParameterDirection.Input));
                     i++;
                 }
             }
@@ -100,7 +123,7 @@ namespace DataAccessCommon
             var properties = new List<PropertyInfo>(entity.GetType().GetProperties());
             foreach (string parameterName in parameterNames)
             {
-                var property = properties.Find(x => x.Name.ToLower() == parameterName.ToLower());
+                var property = properties.Find(x => x.Name.ToLower() == parameterName.Substring(1).ToLower());
                 parameterList.Add(property.GetValue(entity));
             }
         }
@@ -139,7 +162,7 @@ namespace DataAccessCommon
             BuildParameterList(sql, entity, parameterList);
             return DoQuery<DataSet>((conn, SQL, parameters) =>
             {
-                DbCommand command = SetupCommand(conn, CommandType.Text, SQL, parameters);
+                DbCommand command = SetupCommand(conn, CommandType.Text, SQL, parameters, entity.GetType().GetProperties());
                 DbDataAdapter dataAdaptor = dataFactory.CreateDataAdapter();
                 DataSet ds = new DataSet();
                 dataAdaptor.SelectCommand = command;
@@ -163,7 +186,7 @@ namespace DataAccessCommon
             BuildParameterList(sql, entity, parameterList);
             return DoQuery<int>((conn, SQL, parameters) =>
             {
-                DbCommand command = SetupCommand(conn, CommandType.Text, SQL, parameters);
+                DbCommand command = SetupCommand(conn, CommandType.Text, SQL, parameters, entity.GetType().GetProperties());
                 var returnCount = command.ExecuteNonQuery();
                 return returnCount;
             }, sql, parameterList.ToArray());

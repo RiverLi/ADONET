@@ -35,7 +35,7 @@ where productuuid = @productuuid";
         {
             string sql = @"update product set Photo2=@Photo2, Photo2ContentType=@Photo2ContentType
 where productuuid = @productuuid";
-            ExecuteNonQueryByParameters(sql, product);
+            ExecuteNonQueryByEntity(sql, product);
         }
         public static void UpdatePhoto3(Product product)
         {
