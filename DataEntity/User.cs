@@ -18,11 +18,17 @@ namespace DataEntity
         public string alipay { get; set; }
         public string wechat { get; set; }
         public string loginid { get; set; }
-        public string passsword { get; set; }
+        public string password { get; set; }
         public byte[] alipayBarcode { get; set; }
         public byte[] wechatBarcode { get; set; }
         public string alipayBarcodeContentType { get; set; }
         public string wechatBarcodeContentType { get; set; }
         public string busytime { get; set; }
-    }
+        public string securityQuestion1 { get; set; }
+        public string securityAnswer1 { get; set; }
+        public string securityQuestion2 { get; set; }
+        public string securityAnswer2 { get; set; }
+        public string securityQuestion3 { get; set; }
+        public string securityAnswer3 { get; set; }
+   }
 }

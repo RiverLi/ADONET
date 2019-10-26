@@ -16,8 +16,8 @@ namespace DataAccess
         }
         public static void CreateUser(User user)
         {
-            string sql = @"insert into user (uuid,name,address,IDCARD,Scope,DeliveryFee, PhoneNumber, alipay, wechat, loginid, password, busytime) 
-values (@uuid,@name,@address,@IDCARD,@Scope,@DeliveryFee,@PhoneNumber,@alipay,@wechat, @loginid, @password, @busytime)";
+            string sql = @"insert into user (uuid,name,address,IDCARD,Scope,DeliveryFee, PhoneNumber, alipay, wechat, loginid, password, busytime, securityQuestion1, securityAnswer1, securityQuestion2, securityAnswer2, securityQuestion3, securityAnswer3) 
+values (@uuid,@name,@address,@IDCARD,@Scope,@DeliveryFee,@PhoneNumber,@alipay,@wechat, @loginid, @password, @busytime, @securityQuestion1, @securityAnswer1, @securityQuestion2, @securityAnswer2, @securityQuestion3, @securityAnswer3)";
             ExecuteNonQueryByEntity(sql, user);
         }
         public static void UpdateUser(User user)
@@ -49,6 +49,11 @@ where uuid = @uuid";
             string sql = @"select * from user where uuid = @uuid";
             return GetEntityByParameters<User>(sql, uuid);
         }
+        public static User FindUserByPhoneNumber(string PhoneNumber)
+        {
+            string sql = @"select * from user where PhoneNumber = @PhoneNumber";
+            return GetEntityByParameters<User>(sql, PhoneNumber);
+        }
         public static User FindUserByLoginid(string loginid)
         {
             string sql = @"select * from user where loginid = @loginid";
@@ -59,10 +64,10 @@ where uuid = @uuid";
             string sql = @"select * from user where Deleted=0 limit @pageIndex, @pageSize";
             return GetListByParameters<User>(sql, pageIndex, pageSize);
         }
-        public static User LoginUser(string userName, String password)
+        public static User LoginUser(string loginid, String password)
         {
             string sql = "select * from user where Deleted=0 and loginid=@loginid and password=@password";
-            return GetEntityByParameters<User>(sql, userName, password);
+            return GetEntityByParameters<User>(sql, loginid, password);
         }
         public static User GetPhoto1ByUseruuid(string useruuid)
         {
@@ -109,6 +114,18 @@ where uuid = @useruuid";
         {
             string sql = @"select count(1) as cnt from user where Deleted=0";
             return GetEntityByParameters<Count>(sql);
+        }
+        public static void UpdateSecurity(User user)
+        {
+            string sql = @"update user set securityQuestion1=@securityQuestion1, securityAnswer1=@securityAnswer1,  securityQuestion2=@securityQuestion2, securityAnswer2=@securityAnswer2, securityQuestion3=@securityQuestion3, securityAnswer3=@securityAnswer3
+where uuid = @uuid";
+            ExecuteNonQueryByEntity(sql, user);
+        }
+        public static void UpdatePassword(User user)
+        {
+            string sql = @"update user set password=@password
+where uuid = @uuid";
+            ExecuteNonQueryByEntity(sql, user);
         }
     }
 }
