@@ -62,7 +62,7 @@ where uuid = @uuid";
         public static List<User> GetAllUserList(int pageIndex, int pageSize)
         {
             string sql = @"select * from user where Deleted=0 limit @pageIndex, @pageSize";
-            return GetListByParameters<User>(sql, pageIndex, pageSize);
+            return GetListByParameters<User>(sql, (pageIndex - 1) * pageSize, pageSize);
         }
         public static User LoginUser(string loginid, String password)
         {

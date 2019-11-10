@@ -14,13 +14,47 @@ namespace DataAccess
         }
         public static void CreateOrder(Order order)
         {
-            string sql = @"insert into `order` (orderuuid,OrderDate,productuuid,useruuid,count,weight,volume,DeliveryFee,TotalPrice,UnitPrice,Discount, CustomerName, CustomerPhone, DeliveryAddress, Comment, PayMethod) 
-values (@orderuuid,@OrderDate,@productuuid,@useruuid,@count,@weight,@volume,@DeliveryFee,@TotalPrice,@UnitPrice,@Discount, @CustomerName, @CustomerPhone, @DeliveryAddress, @Comment, @PayMethod)";
+            string sql = @"insert into `order` (
+orderuuid,
+OrderDate,
+useruuid,
+DeliveryFee,
+TotalPrice,
+Discount,
+CustomerName,
+CustomerPhone,
+DeliveryAddress,
+Comment,
+PayMethod
+) 
+values
+(
+@orderuuid,
+@OrderDate,
+@useruuid,
+@DeliveryFee,
+@TotalPrice,
+@Discount,
+@CustomerName,
+@CustomerPhone,
+@DeliveryAddress,
+@Comment,
+@PayMethod
+)";
             ExecuteNonQueryByEntity(sql, order);
         }
         public static void UpdateOrder(Order order)
         {
-            string sql = @"update `order` set OrderDate=@OrderDate,productuuid=@productuuid,useruuid=@useruuid,count=@count,weight=@weight,volume=@volume,DeliveryFee=@DeliveryFee,TotalPrice=@TotalPrice,UnitPrice=@UnitPrice,Discount=@Discount, CustomerName=@CustomerName, CustomerPhone=@CustomerPhone, DeliveryAddress=@DeliveryAddress, Comment=@Comment, PayMethod=@PayMethod
+            string sql = @"update `order` set OrderDate=@OrderDate,
+useruuid=@useruuid,
+DeliveryFee=@DeliveryFee,
+TotalPrice=@TotalPrice,
+Discount=@Discount,
+CustomerName=@CustomerName,
+CustomerPhone=@CustomerPhone,
+DeliveryAddress=@DeliveryAddress,
+Comment=@Comment,
+PayMethod=@PayMethod
 where orderuuid = @orderuuid";
             ExecuteNonQueryByEntity(sql, order);
         }
@@ -37,12 +71,12 @@ where orderuuid = @orderuuid";
         public static List<Order> GetAllOrderList(int pageIndex, int pageSize)
         {
             string sql = @"select * from `order` where Deleted=0 limit @pageIndex, @pageSize";
-            return GetListByParameters<Order>(sql, pageIndex, pageSize);
+            return GetListByParameters<Order>(sql, (pageIndex - 1) * pageSize, pageSize);
         }
         public static List<Order> GetAllOrderListByUserId(string useruuid, int pageIndex, int pageSize)
         {
-            string sql = @"select a.*, b.name as ProductName from `order` a left join product b on a.productuuid = b.productuuid where a.Deleted=0 and a.useruuid=@useruuid order by a.OrderDate desc limit @pageIndex, @pageSize";
-            return GetListByParameters<Order>(sql, useruuid, pageIndex, pageSize);
+            string sql = @"select a.* from `order` a where a.Deleted=0 and a.useruuid=@useruuid order by a.OrderDate desc limit @pageIndex, @pageSize";
+            return GetListByParameters<Order>(sql, useruuid, (pageIndex - 1) * pageSize, pageSize);
         }
         public static List<Order> GetRecentOrderListByUserId(string useruuid)
         {

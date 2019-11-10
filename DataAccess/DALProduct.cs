@@ -56,7 +56,7 @@ where productuuid = @productuuid";
         public static List<Product> GetAllProductList(int pageIndex , int pageSize)
         {
             string sql = @"select * from product where Deleted<>1 limit @pageIndex, @pageSize";
-            return GetListByParameters<Product>(sql, pageIndex, pageSize);
+            return GetListByParameters<Product>(sql, (pageIndex - 1) * pageSize, pageSize);
         }
         public static List<Product> GetAllProductListByUserId(string useruuid)
         {
