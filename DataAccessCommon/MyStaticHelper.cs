@@ -4,13 +4,11 @@ using System.Data;
 using System.Data.Common;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using Microsoft.Extensions.Logging;
 namespace DataAccessCommon
 {
     public static class MyStaticDBHelper
     {
         private static readonly string  parameterPattern = @"[@|:]\w+\b?";
-        public static ILogger logger { get; set; }
         public static string providerName = "MySql.Data.MySqlClient"; //"System.Data.SqlClient","System.Data.OracleClient","System.Data.OleDb","MySql.Data.MySqlClient"
         private static DbProviderFactory dataFactory = DbProviderFactories.GetFactory(providerName);
         public static string CONNECTION_STRING = null;
@@ -130,19 +128,11 @@ namespace DataAccessCommon
         private static T DoQuery<T>(Func<DbConnection, string, object[], T> function, string sql, object[] parameterList)
         {
             DbConnection dbConnection = null;
-            try
-            {
-                dbConnection = GetConnection();
-                dbConnection.Open();
-                T returnResult = function(dbConnection, sql, parameterList);
-                dbConnection.Close();
-                return returnResult;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, ex.Message);
-                throw;
-            }
+            dbConnection = GetConnection();
+            dbConnection.Open();
+            T returnResult = function(dbConnection, sql, parameterList);
+            dbConnection.Close();
+            return returnResult;
         }
         private static DataSet ExecuteDataset(string sql, params object[] parameterList)
         {

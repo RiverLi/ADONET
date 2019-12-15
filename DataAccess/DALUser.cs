@@ -10,10 +10,6 @@ namespace DataAccess
 {
     public class DALUser
     {
-        public static void SetLogger(ILogger logger)
-        {
-            MyStaticDBHelper.logger = logger;
-        }
         public static void CreateUser(User user)
         {
             string sql = @"insert into user (uuid,name,address,IDCARD,Scope,DeliveryFee, PhoneNumber, alipay, wechat, loginid, password, busytime, securityQuestion1, securityAnswer1, securityQuestion2, securityAnswer2, securityQuestion3, securityAnswer3) 

@@ -8,10 +8,6 @@ namespace DataAccess
 {
     public class DALOrderProduct
     {
-        public static void SetLogger(ILogger logger)
-        {
-            MyStaticDBHelper.logger = logger;
-        }
         public static void CreateOrderProduct(OrderProduct orderProduct)
         {
             string sql = @"insert into `order_product` (

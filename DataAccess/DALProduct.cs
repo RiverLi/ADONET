@@ -9,10 +9,6 @@ namespace DataAccess
 {
     public class DALProduct
     {
-        public static void SetLogger(ILogger logger)
-        {
-            MyStaticDBHelper.logger = logger;
-        }
         public static void CreateProduct(Product product)
         {
             string sql = @"insert into product (productuuid,useruuid,name,description,price, MeasureType) 

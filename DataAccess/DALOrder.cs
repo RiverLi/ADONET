@@ -8,10 +8,6 @@ namespace DataAccess
 {
     public class DALOrder
     {
-        public static void SetLogger(ILogger logger)
-        {
-            MyStaticDBHelper.logger = logger;
-        }
         public static void CreateOrder(Order order)
         {
             string sql = @"insert into `order` (
@@ -80,12 +76,12 @@ where orderuuid = @orderuuid";
         }
         public static List<Order> GetRecentOrderListByUserId(string useruuid)
         {
-            string sql = @"select a.*, b.name as ProductName from `order` a left join product b on a.productuuid = b.productuuid where a.Deleted=0 and a.useruuid=@useruuid and OrderDate > date_add(Now(), interval -2 minute)";
+            string sql = @"select a.*, b.name as ProductName from `order` a left join order_product c on a.orderuuid = c.orderuuid left join product b on c.productuuid = b.productuuid where a.Deleted=0 and a.useruuid=@useruuid and OrderDate > date_add(Now(), interval -2 minute)";
             return GetListByParameters<Order>(sql, useruuid);
         }
         public static Count GetCountByUserId(string useruuid)
         {
-            string sql = @"select count(1) as cnt from `order` a left join product b on a.productuuid = b.productuuid where a.Deleted=0 and a.useruuid=@useruuid";
+            string sql = @"select count(1) as cnt from `order` a left join order_product c on a.orderuuid = c.orderuuid left join product b on c.productuuid = b.productuuid where a.Deleted=0 and a.useruuid=@useruuid";
             return GetEntityByParameters<Count>(sql, useruuid);
         }
         public static void UpdateConfirmed(Order order)
