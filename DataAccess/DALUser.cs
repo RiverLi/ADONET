@@ -103,7 +103,7 @@ where uuid = @useruuid";
         }
         public static List<User> GetUserListByPhoneNumber(string phoneNumber)
         {
-            string sql = @"select * from user where PhoneNumber=@PhoneNumber and Deleted=0";
+            string sql = @"select * from user where PhoneNumber like concat('%',@PhoneNumber,'%') and Deleted=0";
             return GetListByParameters<User>(sql, phoneNumber);
         }
         public static Count GetCount()

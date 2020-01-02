@@ -81,7 +81,7 @@ where orderuuid = @orderuuid";
         }
         public static Count GetCountByUserId(string useruuid)
         {
-            string sql = @"select count(1) as cnt from `order` a left join order_product c on a.orderuuid = c.orderuuid left join product b on c.productuuid = b.productuuid where a.Deleted=0 and a.useruuid=@useruuid";
+            string sql = @"select count(1) as cnt from `order` a where a.Deleted=0 and a.useruuid=@useruuid";
             return GetEntityByParameters<Count>(sql, useruuid);
         }
         public static void UpdateConfirmed(Order order)
